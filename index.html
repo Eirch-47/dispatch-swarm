@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" href="data:,">
+<title>Dispatch Swarm · Drexathon</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#0b0f17;--panel:#121927;--line:#222c40;--tx:#e6ebf5;--dim:#7d8aa5;--fire:#ff8a3d;--medic:#3ddc97;--rescue:#4aa8ff;--bad:#ff4d5e;--accent:#b794ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:13px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;height:100vh;display:grid;grid-template-columns:1fr 360px;grid-template-rows:auto 1fr;overflow:hidden}
+header{grid-column:1/3;display:flex;align-items:center;gap:12px;padding:9px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:16px;margin:0;letter-spacing:.3px}h1 span{color:var(--accent)}
+.badge{padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;border:1px solid var(--line);color:var(--dim)}
+.badge.live{color:#07140d;background:var(--medic);border-color:var(--medic)}
+.badge.mock{color:#1a0f00;background:#ffc857;border-color:#ffc857}
+.spacer{flex:1}
+main{padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.views{flex:1;min-height:0;display:grid;gap:10px;grid-template-columns:1fr}
+.views.split{grid-template-columns:1fr 1fr}
+.vwrap{position:relative;min-height:0;display:flex;flex-direction:column}
+.vwrap.hide{display:none}
+.vtitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);padding:0 2px 4px}
+.vtitle b{color:var(--accent)}
+canvas.map{flex:none;display:block;margin:0 auto;width:min(100%,calc((100vh - 190px)*1.6));height:auto;aspect-ratio:960/600;background:#0d1320;border:1px solid var(--line);border-radius:12px;box-shadow:0 0 0 1px #0006,0 12px 40px #0008}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,select{background:var(--panel);color:var(--tx);border:1px solid var(--line);padding:6px 12px;border-radius:7px;cursor:pointer;font:inherit}
+button:hover{border-color:var(--accent)}
+button.hot{background:#3a1520;border-color:var(--bad)}
+button.go{background:#2a1f4d;border-color:var(--accent)}
+label{color:var(--dim);display:flex;align-items:center;gap:6px}
+aside{border-left:1px solid var(--line);padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;flex:none}
+.card h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim)}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.m b{display:block;font-size:17px;font-variant-numeric:tabular-nums}.m span{color:var(--dim);font-size:10.5px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{padding:3px 4px;text-align:right;border-bottom:1px solid #1a2336}
+th{color:var(--dim);font-weight:600;font-size:11px}td:first-child,th:first-child{text-align:left;color:var(--dim)}
+td.win{color:var(--medic);font-weight:700}
+#log{height:170px;overflow-y:auto;font:11px/1.45 ui-monospace,Menlo,monospace}
+#log div{padding:2px 0;border-bottom:1px dashed #1a2336}
+.t-claim{color:var(--accent)}.t-yield{color:#ffc857}.t-go{color:var(--medic)}.t-doc{color:var(--rescue)}.t-bad{color:var(--bad)}
+textarea{width:100%;height:52px;background:#0d1320;color:var(--tx);border:1px solid var(--line);border-radius:7px;padding:6px;font:11.5px ui-monospace,monospace;resize:none}
+.drop{border:1px dashed var(--line);border-radius:7px;padding:6px;text-align:center;color:var(--dim);font-size:11px;margin-top:6px}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}.chips button{padding:3px 8px;font-size:11px}
+.legend{display:flex;gap:12px;color:var(--dim);font-size:11px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}
+.pbar{display:grid;grid-template-columns:62px 1fr 38px;gap:6px;align-items:center;font-size:11px;margin:2px 0}
+.pbar i{display:block;height:8px;border-radius:4px;background:#2a3652}.pbar i.on{background:var(--accent)}
+.pbar small{color:var(--dim)}
+#insp .desc{color:var(--dim);font-size:11px;margin:0 0 6px}
+#overlay{position:fixed;inset:0;background:#05080fcc;display:none;align-items:center;justify-content:center;z-index:10}
+#overlay .box{background:var(--panel);border:1px solid var(--accent);border-radius:14px;padding:22px 26px;width:min(620px,92vw)}
+#overlay h2{margin:0 0 4px}#overlay p{color:var(--dim);margin:4px 0 12px}
+.verdict{font-size:15px;margin:10px 0}.warn{background:#3a2a00;color:#ffc857;border-radius:7px;padding:6px 10px;font-size:12px;margin:8px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>DISPATCH <span>SWARM</span></h1>
+  <span class="badge" id="b-drex">Drex …</span>
+  <span class="badge" id="b-ndi">NDI …</span>
+  <span class="legend"><span><i class="dot" style="background:var(--fire)"></i>fire</span><span><i class="dot" style="background:var(--medic)"></i>medic</span><span><i class="dot" style="background:var(--rescue)"></i>rescue</span></span>
+  <span class="spacer"></span>
+  <label>scenario
+    <select id="scen">
+      <option value="rush">Rush hour (steady)</option>
+      <option value="quake">Earthquake (burst)</option>
+      <option value="harbor">Harbor fires (clustered)</option>
+      <option value="festival">Festival crowd (medical)</option>
+    </select></label>
+  <button id="bRun" class="go">▶ Run benchmark</button>
+  <label>view <select id="view"><option value="swarm">Swarm</option><option value="split">Split: Swarm vs Greedy</option><option value="greedy">Greedy</option></select></label>
+</header>
+
+<main>
+  <div class="views" id="views">
+    <div class="vwrap" id="wA"><div class="vtitle"><b>Drex swarm</b> · every unit's choice is a Drex probability · click a unit to inspect</div><canvas class="map" id="cvA" width="1920" height="1200"></canvas></div>
+    <div class="vwrap hide" id="wB"><div class="vtitle"><b style="color:#9aa7c2">Greedy baseline</b> · nearest matching unit, first-come first-served</div><canvas class="map" id="cvB" width="1920" height="1200"></canvas></div>
+  </div>
+  <div class="bar">
+    <button id="bPause">⏸ Pause</button>
+    <button id="bSurge" class="hot">🔥 Surge (6 incidents, both sims)</button>
+    <label>sim speed <input type="range" id="speed" min="1" max="4" value="1"></label>
+    <label><input type="checkbox" id="negot" checked> negotiation round</label>
+    <span id="clock" style="color:var(--dim);margin-left:auto;font-variant-numeric:tabular-nums"></span>
+  </div>
+</main>
+
+<aside>
+  <div class="card">
+    <h3>Head to head · same incidents, same units</h3>
+    <table id="cmp"></table>
+    <div style="font-size:10.5px;color:var(--dim);margin:8px 0 2px">Open incidents over time (lower is better) · <span style="color:#b794ff">━ Drex swarm</span> · <span style="color:#8795b3">┅ Greedy</span></div>
+    <canvas id="trend" width="640" height="130" style="width:100%;height:65px;display:block"></canvas>
+  </div>
+  <div class="card">
+    <h3>Drex usage</h3>
+    <div class="grid">
+      <div class="m"><b id="m-dec">0</b><span>decisions</span></div>
+      <div class="m"><b id="m-req">0</b><span>batched requests</span></div>
+      <div class="m"><b id="m-lat">–</b><span>avg ms / request</span></div>
+      <div class="m"><b id="m-dps">0</b><span>decisions / sec</span></div>
+      <div class="m"><b id="m-cost">$0</b><span>input cost (est.)</span></div>
+      <div class="m"><b id="m-neg">0</b><span>negotiations</span></div>
+    </div>
+  </div>
+  <div class="card" id="insp"><h3>Unit inspector</h3><div style="color:var(--dim);font-size:11px">Click a unit on the swarm map to see the probabilities Drex gave for its last decision.</div></div>
+  <div class="card">
+    <h3>📄 Field report ingest (NDI → Drex triage)</h3>
+    <textarea id="doc" placeholder="Paste a messy report / email / SMS dump…"></textarea>
+    <div class="bar" style="margin-top:6px"><button id="bIngest">Triage &amp; dispatch</button><span id="ingStat" style="color:var(--dim);font-size:11px"></span></div>
+    <div class="chips" id="chips"></div>
+    <div class="drop" id="drop">…or drop a PDF / scan / .eml here</div>
+  </div>
+  <div class="card"><h3>Swarm radio</h3><div id="log"></div></div>
+</aside>
+
+<div id="overlay"><div class="box" id="obox"></div></div>
+
+<script>
+// ============================================================ constants
+const LW = 960, LH = 600, DURATION = 90;
+const DISTRICTS = ["Harbor","Old Town","Midtown","Riverside","Downtown","Hillcrest","Airport","Stadium","Eastside"];
+const dcenter = n => { const i = DISTRICTS.indexOf(n); return {x:(i%3)*320+160, y:Math.floor(i/3)*200+100}; };
+const KCOL = {fire:'#ff8a3d', medic:'#3ddc97', rescue:'#4aa8ff'};
+const PX_PER_KM = 70, SPEED = 46; // px per sim-second
+const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+const km = (a,b) => dist(a,b)/PX_PER_KM;
+const $ = id => document.getElementById(id);
+function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+
+// ============================================================ scenarios (seeded, identical for both sims)
+function makeSchedule(name){
+  const seeds = {rush:11, quake:23, harbor:37, festival:51}, r = rng(seeds[name]);
+  const pick = a => a[Math.floor(r()*a.length)], ev = [];
+  const add = (t,kind,sev,district) => ev.push({t, kind, sev, district, jx:r()-.5, jy:r()-.5});
+  if (name==='rush'){ for(let t=2;t<DURATION-12;t+=3+r()*4) add(t, pick(['fire','medic','rescue','medic','fire']), pick([1,2,2,3,3,4,5]), pick(DISTRICTS)); }
+  if (name==='quake'){
+    for(let i=0;i<11;i++) add(1+r()*6, pick(['rescue','rescue','rescue','medic','medic','fire']), pick([3,4,4,5]), pick(['Old Town','Downtown','Midtown','Riverside']));
+    for(let t=12;t<DURATION-12;t+=5+r()*5) add(t, pick(['rescue','medic','fire']), pick([2,3,4]), pick(DISTRICTS));
+  }
+  if (name==='harbor'){
+    for(let i=0;i<9;i++) add(1+r()*22, 'fire', pick([2,3,4,5]), pick(['Harbor','Harbor','Eastside','Airport']));
+    for(let i=0;i<4;i++) add(4+r()*30, 'medic', pick([3,4]), pick(['Harbor','Eastside']));
+    for(let t=30;t<DURATION-12;t+=6+r()*5) add(t, pick(['fire','medic','rescue']), pick([1,2,3]), pick(DISTRICTS));
+  }
+  if (name==='festival'){
+    for(let i=0;i<14;i++) add(2+r()*50, 'medic', pick([2,3,3,4,5]), pick(['Stadium','Stadium','Downtown','Midtown']));
+    for(let i=0;i<4;i++) add(5+r()*45, 'rescue', pick([3,4]), pick(['Stadium','Downtown']));
+    for(let i=0;i<3;i++) add(8+r()*40, 'fire', pick([2,3]), pick(DISTRICTS));
+  }
+  return ev.sort((a,b)=>a.t-b.t);
+}
+
+// ============================================================ world (one policy per world)
+class World {
+  constructor(policy, schedule, log){
+    this.policy=policy; this.sched=schedule; this.log=log||(()=>{}); this.t=0; this.si=0; this.seq=1; this.acc=0;
+    this.incidents=[]; this.res=0; this.lost=0; this.resp=[]; this.sevTotal=0; this.sevServed=0; this.spawned=0;
+    const r = rng(7), kinds=['medic','medic','medic','medic','medic','fire','fire','fire','fire','rescue','rescue','rescue','rescue','medic'], cnt={};
+    this.fx=[];
+    this.units = kinds.map((k,i)=>{
+      cnt[k]=(cnt[k]||0)+1; const c=dcenter(DISTRICTS[(i*4+1)%9]);
+      const x=c.x+(r()-.5)*160, y=c.y+(r()-.5)*100;
+      return {id:k[0].toUpperCase()+cnt[k], kind:k, x, y, hx:x, hy:y, status:'idle', target:null, claim:null, done:0, last:null, trail:[]};
+    });
+  }
+  assigned(inc){ return this.units.filter(u=>u.target===inc.id && (u.status==='enroute'||u.status==='working')).length; }
+  slots(inc){ return inc.need - this.assigned(inc); }
+  needy(){ return this.incidents.filter(i=>(i.status==='open'||i.status==='working') && this.slots(i)>0); }
+  spawn(ev, summary, src){
+    const c=dcenter(ev.district);
+    const inc={id:'INC-'+(this.seq++), kind:ev.kind, sev:ev.sev, sev0:ev.sev, district:ev.district, x:c.x+ev.jx*220, y:c.y+ev.jy*130,
+      born:this.t, status:'open', workLeft:null, firstArrive:null, lastEsc:this.t, summary:summary||'', src:src||'sim', need: ev.sev<=2?1:2};
+    this.incidents.push(inc); this.fx.push({x:inc.x,y:inc.y,t0:performance.now(),col:KCOL[inc.kind]}); this.spawned++; this.sevTotal+=ev.sev;
+    this.log('t-bad', `🚨 ${inc.id} ${inc.kind} sev${inc.sev} in ${inc.district}`);
+    return inc;
+  }
+  step(dt){
+    this.t += dt;
+    while(this.si<this.sched.length && this.sched[this.si].t<=this.t) this.spawn(this.sched[this.si++]);
+    for(const u of this.units){
+      if(u.status!=='enroute' && u.status!=='returning'){ if(u.trail.length) u.trail.shift(); continue; }
+      u.trail.push({x:u.x,y:u.y}); if(u.trail.length>42) u.trail.shift();
+      const t = u.status==='enroute' ? this.incidents.find(i=>i.id===u.target) : {x:u.hx,y:u.hy};
+      if(!t || (u.status==='enroute' && (t.status==='resolved'||t.status==='lost'))){ u.status='returning'; u.target=null; continue; }
+      const d=dist(u,t), s=SPEED*dt;
+      if(d<=s+1){ u.x=t.x; u.y=t.y;
+        if(u.status==='enroute'){ u.status='working'; if(t.firstArrive==null){ t.firstArrive=this.t; this.resp.push(this.t-t.born); } } else u.status='idle'; }
+      else { u.x+=(t.x-u.x)/d*s; u.y+=(t.y-u.y)/d*s; }
+    }
+    for(const inc of this.incidents){
+      if(inc.status==='resolved'||inc.status==='lost') continue;
+      const here=this.units.filter(u=>u.target===inc.id && u.status==='working').length;
+      if(here>=inc.need){
+        if(inc.workLeft==null){ inc.workLeft=3+inc.sev*1.4; inc.workTotal=inc.workLeft; }
+        inc.status='working'; inc.workLeft-=dt;
+        if(inc.workLeft<=0){ inc.status='resolved'; inc.end=this.t; this.res++; this.fx.push({x:inc.x,y:inc.y,t0:performance.now(),col:'#3ddc97'}); this.sevServed+=inc.sev0;
+          this.units.filter(u=>u.target===inc.id).forEach(u=>{u.status='returning'; u.target=null; u.done++;}); this.log('t-go', `✔ ${inc.id} resolved`); }
+      } else if(inc.status==='working') inc.status='open';
+      if(inc.status==='open'||inc.status==='working'){
+        if(this.t-inc.lastEsc>14 && inc.sev<5){ inc.sev++; inc.lastEsc=this.t; this.log('t-bad', `⚠ ${inc.id} escalated to sev ${inc.sev}`); }
+        if(this.t-inc.born>70 && here===0){ inc.status='lost'; inc.end=this.t; this.lost++; this.fx.push({x:inc.x,y:inc.y,t0:performance.now(),col:'#ff4d5e'}); this.log('t-bad', `✖ ${inc.id} LOST (unattended)`); }
+      }
+    }
+    this.incidents=this.incidents.filter(i=>!(i.end && this.t-i.end>4));
+    if(this.policy==='greedy'){ this.acc+=dt; if(this.acc>0.3){ this.acc=0; this.greedy(); } }
+  }
+  greedy(){ // classic dispatcher: oldest incident first, nearest free unit of the matching type
+    const open=this.needy().sort((a,b)=>a.born-b.born);
+    for(const inc of open){ let s=this.slots(inc);
+      while(s>0){
+        const free=this.units.filter(u=>(u.status==='idle'||u.status==='returning') && u.kind===inc.kind).sort((a,b)=>dist(a,inc)-dist(b,inc));
+        if(!free.length) break; const u=free[0]; u.target=inc.id; u.status='enroute'; s--;
+      } }
+  }
+  score(){ return this.sevTotal ? this.sevServed/this.sevTotal : 0; }
+  avgResp(){ return this.resp.length ? this.resp.reduce((a,b)=>a+b,0)/this.resp.length : null; }
+}
+
+// ============================================================ globals
+let A, B, scenario='rush', paused=false, ended=false, ticking=false, mode='mock';
+let hist=[], lastSample=0;
+const S = {reqs:0, dec:0, lat:0, chars:0, neg:0, stamps:[]};
+const logEl=$('log');
+function radio(cls,msg){ const d=document.createElement('div'); d.className=cls; d.textContent=msg; logEl.prepend(d); while(logEl.children.length>120) logEl.lastChild.remove(); }
+
+function reset(){
+  const sched=makeSchedule(scenario);
+  A=new World('drex', sched, radio); B=new World('greedy', sched);
+  Object.assign(S,{reqs:0,dec:0,lat:0,chars:0,neg:0,stamps:[]}); logEl.innerHTML='';
+  hist=[]; lastSample=0; ended=false; paused=false; $('bPause').textContent='⏸ Pause'; $('overlay').style.display='none'; $('insp').querySelector('div').textContent='Click a unit on the swarm map to see the probabilities Drex gave for its last decision.';
+  radio('t-go', `Scenario "${scenario}" · ${sched.length} scripted incidents · 14 units`);
+}
+function inject(ev, summary, src){ const a=A.spawn(ev,summary,src); B.spawn(ev,summary,src); return a; }
+function randEvent(){ const rr=Math.random, pick=a=>a[Math.floor(rr()*a.length)];
+  return {kind:pick(['fire','medic','rescue','medic','fire']), sev:pick([1,2,2,3,3,4,5]), district:pick(DISTRICTS), jx:rr()-.5, jy:rr()-.5}; }
+
+// ============================================================ Drex
+async function drex(state, questions, mock){
+  const r = await fetch('/api/decide', {method:'POST', body: JSON.stringify({state, questions, _mock: mock})});
+  const j = await r.json();
+  if (j.error) { radio('t-bad', 'Drex error: '+j.error.slice(0,120)); return null; }
+  const nq = Object.keys(questions).length; S.dec+=nq; S.reqs++; S.lat+=j.latency_ms; S.chars+=JSON.stringify({state,questions}).length;
+  for(let k=0;k<nq;k++) S.stamps.push(performance.now());
+  return j.answers;
+}
+
+async function tick(){
+  if (ticking || paused || ended) return; ticking = true;
+  try {
+    const free = A.units.filter(u => u.status==='idle' || u.status==='returning');
+    const needy = A.needy();
+    if (!free.length || !needy.length) return;
+
+    // round 1: ONE batched request, one named question per free unit
+    const prep = free.map(u => {
+      const cands = needy.map(i => { const d=km(u,i), wait=Math.round(A.t-i.born);
+        return {i, d, wait, logit:(i.kind===u.kind?3:-3) + i.sev*0.6 - d*0.5 + wait*0.04}; }).sort((a,b)=>b.logit-a.logit).slice(0,5);
+      const criteria={}, mock={};
+      cands.forEach(c => { criteria[c.i.id]=`${c.i.kind} emergency, severity ${c.i.sev}/5, ${c.d.toFixed(1)} km from you, needs ${A.slots(c.i)} more unit(s), waiting ${c.wait}s in ${c.i.district}`; mock[c.i.id]=c.logit; });
+      criteria.HOLD='stay available: every incident is better handled by someone else'; mock.HOLD=0.8;
+      return {u, cands, criteria, mock};
+    });
+    const world = {rules:'A unit only helps incidents of its own type. Avoid sending too many units to one incident.',
+                   units:A.units.map(o=>`${o.id}(${o.kind}):${o.status}${o.target?'->'+o.target:''}`).join(', ')};
+    const qs={}, mk={};
+    prep.forEach(p=>{ qs[p.u.id]={type:'choice', instructions:`You are dispatch unit ${p.u.id} (${p.u.kind}). Choose the incident where you add the most value, or HOLD.`, criteria:p.criteria}; mk[p.u.id]=p.mock; });
+    const a1 = await drex(world, qs, mk);
+    if (!a1) return;
+    const r1 = prep.map(p => { const ans=a1[p.u.id], ch=ans&&ans.choice;
+      p.u.last={t:A.t, chosen:ch, probs:(ans&&ans.probs)||{}, criteria:p.criteria};
+      return {u:p.u, inc: ch&&ch!=='HOLD' ? A.incidents.find(i=>i.id===ch) : null, p:((ans&&ans.probs)||{})[ch]||0.5}; });
+    const claims = new Map();
+    r1.filter(x=>x.inc).forEach(x=>{ x.u.claim=x.inc.id; (claims.get(x.inc.id)||claims.set(x.inc.id,[]).get(x.inc.id)).push(x); });
+    claims.forEach((arr,id)=>arr.forEach(x=>radio('t-claim', `${x.u.id} claims ${id} (p=${x.p.toFixed(2)})`)));
+
+    // round 2: negotiation for over-subscribed incidents (second batched request)
+    const keep=[], negotiate=$('negot').checked, entries=[];
+    claims.forEach((arr,id)=>{
+      const inc=A.incidents.find(i=>i.id===id), sl=A.slots(inc);
+      if (arr.length<=sl || !negotiate){ arr.sort((a,b)=>km(a.u,inc)-km(b.u,inc)).forEach((x,k)=>{ if(k<sl||!negotiate) keep.push(x); else x.u.claim=null; }); return; }
+      S.neg++; radio('t-yield', `⚖ ${id}: ${arr.length} units claimed, ${sl} slot(s) → negotiating`);
+      arr.forEach(x=>{ const rivals=arr.filter(o=>o!==x).map(o=>`${o.u.id} (${o.u.kind}, ${km(o.u,inc).toFixed(1)} km)`).join(', ');
+        const myd=km(x.u,inc), rank=arr.filter(o=>km(o.u,inc)<myd).length; entries.push({x,rank,inc,sl,n:arr.length,myd,rivals}); });
+    });
+    let neg=[];
+    if (entries.length){
+      const qn={}, mkn={};
+      entries.forEach(e=>{
+        qn[e.x.u.id]={type:'noul', instructions:`Unit ${e.x.u.id} (${e.x.u.kind}) claimed ${e.inc.id} (${e.inc.kind}, severity ${e.inc.sev}, ${e.inc.district}), ${e.myd.toFixed(1)} km away. ${e.sl} slot(s) are open but ${e.n} units claimed it. Rivals: ${e.rivals}. Should ${e.x.u.id} keep its claim? Yes only if it is among the best-placed units; otherwise yield so others can cover other incidents.`,
+          criteria:{true:'keep the claim (I am among the closest suitable units)', false:'yield (a rival is better placed)'}};
+        mkn[e.x.u.id]={logit: e.rank<e.sl ? 2.2 : -2.2+(e.inc.kind===e.x.u.kind?0.8:-1.5)};
+      });
+      const a2 = await drex({incidents_in_conflict:[...new Set(entries.map(e=>e.inc.id))].join(', ')}, qn, mkn);
+      neg = entries.map(e=>({x:e.x, rank:e.rank, p: a2&&a2[e.x.u.id]&&a2[e.x.u.id].p!=null ? a2[e.x.u.id].p : (e.rank<e.sl?0.8:0.2)}));
+    }
+    const byInc=new Map();
+    neg.forEach(n=>(byInc.get(n.x.inc.id)||byInc.set(n.x.inc.id,[]).get(n.x.inc.id)).push(n));
+    byInc.forEach((arr,id)=>{ const sl=A.slots(arr[0].x.inc);
+      arr.sort((a,b)=>b.p-a.p||a.rank-b.rank);
+      arr.forEach((n,k)=>{ if(k<sl) keep.push(n.x); else { n.x.u.claim=null; radio('t-yield', `${n.x.u.id} yields ${id} (keep p=${n.p.toFixed(2)})`); } }); });
+    keep.forEach(x=>{ const u=x.u; if(A.slots(x.inc)<=0){ u.claim=null; return; }
+      u.target=x.inc.id; u.status='enroute'; u.claim=null; radio('t-go', `▶ ${u.id} dispatched → ${x.inc.id} (${km(u,x.inc).toFixed(1)} km)`); });
+  } catch(e){ radio('t-bad','tick error '+e); }
+  finally { A.units.forEach(u=>u.claim=null); ticking=false; }
+}
+
+// ============================================================ render
+const hexA=(h,a)=>`rgba(${parseInt(h.slice(1,3),16)},${parseInt(h.slice(3,5),16)},${parseInt(h.slice(5,7),16)},${a})`;
+let BG=null;
+function buildBg(){ // static night-city base map, drawn once
+  const c=document.createElement('canvas'); c.width=LW*2; c.height=LH*2; const g=c.getContext('2d'); g.scale(2,2); const r=rng(99);
+  g.fillStyle='#18223a'; g.fillRect(0,0,LW,LH);                       // street colour
+  for(let bx=0;bx<LW;bx+=40) for(let by=0;by<LH;by+=40){               // city blocks + buildings
+    const di=Math.floor(bx/320)+3*Math.floor(by/200), downtown=di===4, old=di===1;
+    g.fillStyle='#0e1626'; g.fillRect(bx+3,by+3,34,34);
+    const n=old?4:2+Math.floor(r()*2), cw=34/n;
+    for(let i=0;i<n;i++) for(let j=0;j<n;j++){ if(r()<.12) continue;
+      const sh=downtown? 30+r()*22 : 20+r()*12; g.fillStyle=`rgb(${sh*.62|0},${sh*.86|0},${sh*1.45|0})`;
+      g.fillRect(bx+3+i*cw+.8, by+3+j*cw+.8, cw-1.6, cw-1.6);
+      if(r()<(downtown?.55:.16)){ g.fillStyle=`rgba(255,214,140,${.25+r()*.4})`; g.fillRect(bx+3+i*cw+cw*.3+r()*2, by+3+j*cw+cw*.3+r()*2, 1.4, 1.4); } }
+  }
+  const water='#0a2740', shore='#12426a';
+  // harbor bay
+  g.fillStyle=water; g.strokeStyle=shore; g.lineWidth=2; g.beginPath(); g.moveTo(0,0); g.lineTo(150,0); g.bezierCurveTo(120,60,70,90,60,130); g.bezierCurveTo(40,150,20,150,0,160); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle='#24324f'; [[70,22,30,5],[58,44,34,5],[44,68,36,5],[30,92,34,5]].forEach(p=>g.fillRect(...p));   // piers
+  // river through Riverside
+  const river=()=>{ g.beginPath(); g.moveTo(55,135); g.bezierCurveTo(170,200,190,270,110,320); g.bezierCurveTo(60,350,30,360,0,392); };
+  g.lineCap='round'; g.strokeStyle=shore; g.lineWidth=26; river(); g.stroke(); g.strokeStyle=water; g.lineWidth=22; river(); g.stroke();
+  // Hillcrest park
+  g.fillStyle='#0f2b20'; g.strokeStyle='#1b4a35'; g.lineWidth=1.5; g.beginPath(); g.roundRect(724,244,150,108,22); g.fill(); g.stroke();
+  for(let i=0;i<70;i++){ g.fillStyle=`rgba(46,${110+r()*50|0},78,.7)`; g.beginPath(); g.arc(732+r()*134,252+r()*92,1.5+r()*2,0,7); g.fill(); }
+  g.fillStyle=water; g.beginPath(); g.ellipse(800,300,22,12,.3,0,7); g.fill();
+  // airport
+  g.fillStyle='#101a2b'; g.fillRect(24,436,272,132);
+  g.save(); g.translate(160,502); g.rotate(-.16); g.fillStyle='#2a3650'; g.fillRect(-126,-9,252,18); g.fillRect(-96,26,170,10);
+  g.strokeStyle='#8fa2c8'; g.setLineDash([10,9]); g.lineWidth=1.4; g.beginPath(); g.moveTo(-116,0); g.lineTo(116,0); g.stroke(); g.restore();
+  g.fillStyle='#24324f'; g.fillRect(190,446,70,22);
+  // stadium
+  g.fillStyle='#24324f'; g.beginPath(); g.ellipse(480,520,52,36,0,0,7); g.fill(); g.fillStyle='#132e22'; g.beginPath(); g.ellipse(480,520,32,19,0,0,7); g.fill();
+  g.strokeStyle='#3a4b70'; g.lineWidth=1.2; g.beginPath(); g.ellipse(480,520,43,28,0,0,7); g.stroke();
+  // arterial roads (cover the river = bridges)
+  const road=(x1,y1,x2,y2)=>{ g.setLineDash([]); g.strokeStyle='#2a3654'; g.lineWidth=8; g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke();
+    g.strokeStyle='#4a5a82'; g.lineWidth=1; g.setLineDash([7,7]); g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke(); g.setLineDash([]); };
+  road(320,0,320,LH); road(640,0,640,LH); road(0,200,LW,200); road(0,400,LW,400);
+  // vignette
+  const v=g.createRadialGradient(LW/2,LH/2,LH*.35,LW/2,LH/2,LW*.68); v.addColorStop(0,'rgba(5,8,15,0)'); v.addColorStop(1,'rgba(5,8,15,.6)'); g.fillStyle=v; g.fillRect(0,0,LW,LH);
+  return c;
+}
+
+function drawWorld(w, cv, interactive){
+  const g=cv.getContext('2d'), k=Math.max(1, LW/Math.max(cv.clientWidth,1)*0.8), now=performance.now();
+  g.setTransform(2,0,0,2,0,0);
+  if(!BG) BG=buildBg();
+  g.drawImage(BG,0,0,LW,LH);
+  // district labels
+  g.save(); g.font=`700 ${10.5*k}px system-ui`; g.textAlign='left'; g.textBaseline='top'; try{ g.letterSpacing='2px'; }catch(e){}
+  for(let i=0;i<9;i++){ const x=(i%3)*320, y=Math.floor(i/3)*200, t=DISTRICTS[i].toUpperCase(), tw=g.measureText(t).width;
+    g.fillStyle='rgba(8,12,22,.72)'; g.beginPath(); g.roundRect(x+10,y+10,tw+14,16*k,5); g.fill(); g.fillStyle='rgba(176,194,232,.8)'; g.fillText(t,x+17,y+10+3.5*k); }
+  g.restore();
+  // trails
+  w.units.forEach(u=>{ const tr=u.trail, n=tr.length; if(n<2) return; g.save(); g.strokeStyle=KCOL[u.kind]; g.lineCap='round';
+    for(let i=1;i<n;i++){ g.globalAlpha=i/n*.55; g.lineWidth=3.2*k*(i/n); g.beginPath(); g.moveTo(tr[i-1].x,tr[i-1].y); g.lineTo(tr[i].x,tr[i].y); g.stroke(); } g.restore(); });
+  // claim / route lines (animated dashes)
+  w.units.forEach(u=>{ let t=null, claim=false;
+    if(u.claim){ t=w.incidents.find(i=>i.id===u.claim); claim=true; } else if(u.status==='enroute') t=w.incidents.find(i=>i.id===u.target);
+    if(!t) return; g.save(); g.strokeStyle=claim?'#b794ff':KCOL[u.kind]; g.globalAlpha=claim?.95:.5; g.lineWidth=(claim?2:1.3)*k;
+    g.setLineDash(claim?[3,5]:[8,7]); g.lineDashOffset=-now/45; g.beginPath(); g.moveTo(u.x,u.y); g.lineTo(t.x,t.y); g.stroke(); g.restore(); });
+  // incidents
+  w.incidents.forEach(inc=>{
+    const done=inc.status==='resolved', lost=inc.status==='lost', col=done?'#3ddc97':lost?'#6b7386':KCOL[inc.kind];
+    const pulse=(Math.sin(now/(inc.sev>=4?140:260)+inc.born)+1)/2, r=(10+inc.sev*1.5)*Math.min(k,1.6), asg=w.assigned(inc);
+    g.save(); g.globalAlpha=done||lost?.55:1;
+    if(!done&&!lost){ const R=r*(2.4+inc.sev*.35), gr=g.createRadialGradient(inc.x,inc.y,r*.4,inc.x,inc.y,R);
+      gr.addColorStop(0,hexA(col,.30+.18*pulse)); gr.addColorStop(1,hexA(col,0)); g.fillStyle=gr; g.beginPath(); g.arc(inc.x,inc.y,R,0,7); g.fill();
+      g.strokeStyle=hexA(col,.25+.45*pulse); g.lineWidth=1.6*k; g.beginPath(); g.arc(inc.x,inc.y,r+3+6*pulse*k,0,7); g.stroke(); }
+    g.fillStyle='#0a0e17'; g.strokeStyle=col; g.lineWidth=2.6*Math.min(k,1.6); g.beginPath(); g.arc(inc.x,inc.y,r,0,7); g.fill(); g.stroke();
+    if(inc.status==='working' && inc.workTotal){ const f=Math.max(0,Math.min(1,1-inc.workLeft/inc.workTotal));       // work progress
+      g.strokeStyle='#ffffff'; g.lineWidth=2.4*k; g.lineCap='round'; g.beginPath(); g.arc(inc.x,inc.y,r+3.5*k,-Math.PI/2,-Math.PI/2+f*Math.PI*2); g.stroke(); }
+    else if(!done&&!lost&&asg===0){ const f=Math.min(1,(w.t-inc.born)/70);                                           // time until lost
+      g.strokeStyle='#ff4d5e'; g.lineWidth=2.2*k; g.beginPath(); g.arc(inc.x,inc.y,r+3.5*k,-Math.PI/2,-Math.PI/2+f*Math.PI*2); g.stroke(); }
+    g.fillStyle=col; g.font=`700 ${13*k}px system-ui`; g.textAlign='center'; g.textBaseline='middle'; g.fillText(done?'✔':lost?'✖':inc.sev, inc.x, inc.y+1);
+    const lbl=inc.id+(inc.src==='doc'?' 📄':''); g.font=`600 ${9.5*k}px ui-monospace,monospace`; const lw=g.measureText(lbl).width;
+    g.fillStyle='rgba(8,12,22,.75)'; g.beginPath(); g.roundRect(inc.x-lw/2-4, inc.y+r+5*k, lw+8, 13*k, 4); g.fill();
+    g.fillStyle='#c3cfea'; g.fillText(lbl, inc.x, inc.y+r+11.5*k);
+    if(!done&&!lost) for(let q=0;q<inc.need;q++){ g.fillStyle=q<asg?col:'#3a4868'; g.beginPath(); g.roundRect(inc.x-inc.need*4.5*k+q*9*k+1, inc.y-r-10*k, 7*k, 4*k, 2); g.fill(); }
+    g.restore(); });
+  // units
+  w.units.forEach(u=>{ g.save(); const ur=9*Math.min(k,1.8), active=u.status!=='idle', col=KCOL[u.kind];
+    g.shadowColor=col; g.shadowBlur=active?16:5; g.fillStyle=col; g.globalAlpha=active?1:.7; g.beginPath(); g.arc(u.x,u.y,ur,0,7); g.fill();
+    g.shadowBlur=0; g.globalAlpha=1; g.strokeStyle='#0a0e17'; g.lineWidth=1.6; g.stroke();
+    g.fillStyle='#07101a'; g.font=`800 ${10*Math.min(k,1.8)}px system-ui`; g.textAlign='center'; g.textBaseline='middle'; g.fillText(u.id, u.x, u.y+.5);
+    if(u.status==='working'){ g.strokeStyle='#fff'; g.lineWidth=1.6; g.setLineDash([4,4]); g.lineDashOffset=-now/60; g.beginPath(); g.arc(u.x,u.y,ur+4,0,7); g.stroke(); g.setLineDash([]); }
+    if(interactive && inspected===u.id){ g.strokeStyle='#b794ff'; g.lineWidth=2.5; g.beginPath(); g.arc(u.x,u.y,ur+7,0,7); g.stroke(); }
+    g.restore(); });
+  // ripples (spawn / resolve / lost)
+  w.fx=w.fx.filter(f=>now-f.t0<900);
+  w.fx.forEach(f=>{ const a=(now-f.t0)/900; g.save(); g.strokeStyle=hexA(f.col,(1-a)*.9); g.lineWidth=2.5*k*(1-a)+.5; g.beginPath(); g.arc(f.x,f.y,12+a*55,0,7); g.stroke(); g.restore(); });
+}
+
+function drawTrend(){
+  const c=$('trend'), g=c.getContext('2d'), Wd=c.width, Hd=c.height; g.clearRect(0,0,Wd,Hd);
+  const mx=Math.max(4,...hist.map(h=>Math.max(h.a,h.b)));
+  g.strokeStyle='#222c40'; g.lineWidth=1; g.beginPath(); g.moveTo(0,Hd-1); g.lineTo(Wd,Hd-1); g.stroke();
+  g.fillStyle='#7d8aa5'; g.font='18px system-ui'; g.textAlign='left'; g.textBaseline='top'; g.fillText(String(mx),2,0);
+  const line=(key,col,dash)=>{ if(hist.length<2) return; g.strokeStyle=col; g.lineWidth=3; g.setLineDash(dash); g.lineJoin='round'; g.beginPath();
+    hist.forEach((h,i)=>{ const x=h.t/DURATION*Wd, y=Hd-4-(h[key]/mx)*(Hd-12); i?g.lineTo(x,y):g.moveTo(x,y); }); g.stroke(); g.setLineDash([]); };
+  line('b','#8795b3',[7,6]); line('a','#b794ff',[]);
+}
+
+let inspected=null, lastUi=0;
+function renderInspector(){
+  const u = A.units.find(x=>x.id===inspected); if(!u) return;
+  const l=u.last, box=$('insp');
+  let h=`<h3>Unit inspector · ${u.id} (${u.kind}) · ${u.status}${u.target?' → '+u.target:''} · ${u.done} resolved</h3>`;
+  if(!l){ h+='<div style="color:var(--dim);font-size:11px">No decision yet.</div>'; }
+  else {
+    h+=`<p class="desc">Last Drex decision at t=${l.t.toFixed(0)}s → <b>${l.chosen}</b></p>`;
+    const ids=Object.keys(l.criteria), ps=l.probs;
+    if(!Object.keys(ps).length) h+='<div class="warn">Drex returned no per-option probabilities in a shape the parser recognises. Check /api/status → last_raw.</div>';
+    ids.sort((a,b)=>(ps[b]||0)-(ps[a]||0)).forEach(id=>{ const p=ps[id]||0;
+      h+=`<div class="pbar" title="${(l.criteria[id]||'').replace(/"/g,'')}"><span>${id}</span><i class="${id===l.chosen?'on':''}" style="width:${Math.max(2,p*100)}%"></i><small>${(p*100).toFixed(0)}%</small></div>`; });
+    if(l.chosen && l.criteria[l.chosen]) h+=`<p class="desc" style="margin-top:6px">${l.criteria[l.chosen]}</p>`;
+  }
+  box.innerHTML=h;
+}
+
+function renderCompare(){
+  const f=(w,k)=>w[k], pct=x=>(x*100).toFixed(0)+'%', s=v=>v==null?'–':v.toFixed(1);
+  const row=(name, a, b, better)=>{ const win = a!=null&&b!=null&&a!==b ? (better==='high'? a>b : a<b) : null;
+    return `<tr><td>${name}</td><td class="${win===true?'win':''}">${a}</td><td class="${win===false?'win':''}">${b}</td></tr>`; };
+  $('cmp').innerHTML=`<tr><th></th><th>Drex swarm</th><th>Greedy</th></tr>`+
+    `<tr><td>Severity served</td><td class="${A.score()>B.score()?'win':''}">${pct(A.score())}</td><td class="${B.score()>A.score()?'win':''}">${pct(B.score())}</td></tr>`+
+    row('Resolved',A.res,B.res,'high')+row('Lost',A.lost,B.lost,'low')+
+    `<tr><td>Avg response (s)</td><td class="${A.avgResp()!=null&&B.avgResp()!=null&&A.avgResp()<B.avgResp()?'win':''}">${s(A.avgResp())}</td><td class="${A.avgResp()!=null&&B.avgResp()!=null&&B.avgResp()<A.avgResp()?'win':''}">${s(B.avgResp())}</td></tr>`+
+    `<tr><td>Incidents so far</td><td>${A.spawned}</td><td>${B.spawned}</td></tr>`;
+}
+
+function updateUi(){
+  const now=performance.now(); S.stamps=S.stamps.filter(t=>now-t<5000);
+  $('m-dec').textContent=S.dec; $('m-req').textContent=S.reqs; $('m-lat').textContent=S.reqs?Math.round(S.lat/S.reqs):'–';
+  $('m-dps').textContent=(S.stamps.length/5).toFixed(1); $('m-cost').textContent='$'+(S.chars/4*0.06e-6).toFixed(5); $('m-neg').textContent=S.neg;
+  $('clock').textContent=`sim ${A.t.toFixed(0)}s / ${DURATION}s`+(ended?' · finished':'');
+  renderCompare(); drawTrend(); if(inspected) renderInspector();
+}
+
+// ============================================================ finish / report
+function finish(){
+  ended=true; paused=true;
+  const avgLat=S.reqs?Math.round(S.lat/S.reqs):null, cost=(S.chars/4*0.06e-6).toFixed(5);
+  const sA=A.score(), sB=B.score(), rA=A.avgResp(), rB=B.avgResp();
+  const dS=(sA-sB)*100, better=dS>0.5, worse=dS<-0.5;
+  const verdict = better ? `Drex swarm served <b>${dS.toFixed(0)} points more</b> of the severity-weighted demand.` : worse ? `The greedy baseline served ${(-dS).toFixed(0)} points more in this scenario.` : 'Both policies served about the same share of demand.';
+  const text = `Dispatch Swarm · scenario "${scenario}" (${DURATION}s sim, ${A.spawned} incidents, 14 units)\n`+
+    `Severity served: Drex swarm ${(sA*100).toFixed(0)}% vs greedy ${(sB*100).toFixed(0)}%\nResolved: ${A.res} vs ${B.res} · Lost: ${A.lost} vs ${B.lost}\n`+
+    `Avg response: ${rA==null?'–':rA.toFixed(1)}s vs ${rB==null?'–':rB.toFixed(1)}s\nDrex: ${S.dec} decisions in ${S.reqs} batched requests, avg ${avgLat}ms/request, est. input cost $${cost}`+(mode==='mock'?'\n(MOCK MODE: not real Drex results)':'');
+  $('obox').innerHTML=`<h2>After-action report</h2><p>Scenario <b>${scenario}</b> · same ${A.spawned} incidents and 14 units for both policies</p>`+
+    (mode==='mock'?'<div class="warn">MOCK MODE: these numbers come from a local stand-in, not Drex. Do not present them as results.</div>':'')+
+    `<table><tr><th></th><th>Drex swarm</th><th>Greedy baseline</th></tr>
+      <tr><td>Severity-weighted demand served</td><td>${(sA*100).toFixed(0)}%</td><td>${(sB*100).toFixed(0)}%</td></tr>
+      <tr><td>Incidents resolved</td><td>${A.res}</td><td>${B.res}</td></tr>
+      <tr><td>Incidents lost (unattended)</td><td>${A.lost}</td><td>${B.lost}</td></tr>
+      <tr><td>Avg time to first responder (s)</td><td>${rA==null?'–':rA.toFixed(1)}</td><td>${rB==null?'–':rB.toFixed(1)}</td></tr></table>
+     <div class="verdict">${verdict}</div>
+     <p>Drex: ${S.dec} decisions in ${S.reqs} batched requests · avg ${avgLat==null?'–':avgLat} ms per request · est. input cost $${cost}</p>
+     <div class="bar"><button id="bCopy" class="go">Copy results</button><button id="bAgain">Run again</button><button id="bClose">Close</button></div>`;
+  $('overlay').style.display='flex';
+  $('bCopy').onclick=()=>{ navigator.clipboard.writeText(text); $('bCopy').textContent='Copied ✓'; };
+  $('bAgain').onclick=()=>reset(); $('bClose').onclick=()=>{ $('overlay').style.display='none'; };
+}
+
+// ============================================================ loop
+let last=performance.now();
+function frame(t){
+  const dt=Math.min(0.1,(t-last)/1000); last=t;
+  if(!paused && !ended){ const d=dt*$('speed').value; A.step(d); B.step(d);
+    if(A.t-lastSample>=1){ lastSample=A.t; const oc=w=>w.incidents.filter(i=>i.status==='open'||i.status==='working').length; hist.push({t:A.t,a:oc(A),b:oc(B)}); }
+    if(A.t>=DURATION) finish(); }
+  drawWorld(A,$('cvA'),true);
+  if($('view').value!=='swarm') drawWorld(B,$('cvB'),false);
+  if(t-lastUi>150){ lastUi=t; updateUi(); }
+  requestAnimationFrame(frame);
+}
+
+// ============================================================ ingest
+const SAMPLES=['01_harbor_warehouse_email','02_riverside_sms_dump','03_stadium_incident_report','04_hillcrest_minor','05_oldtown_collapse'];
+SAMPLES.forEach((s,i)=>{ const b=document.createElement('button'); b.textContent='sample '+(i+1); b.onclick=async()=>{ $('doc').value=await (await fetch('/samples/'+s+'.txt')).text(); }; $('chips').append(b); });
+async function ingest(payload){
+  $('ingStat').textContent='triaging…';
+  const r=await fetch('/api/ingest',{method:'POST',body:JSON.stringify({...payload,districts:DISTRICTS})}), j=await r.json();
+  if(j.error){ $('ingStat').textContent=''; radio('t-bad','ingest: '+j.error.slice(0,140)); return; }
+  const a=j.incident; S.dec+=3; S.reqs++; S.lat+=j.latency_ms; S.chars+=800;
+  const inc=inject({kind:a.kind,sev:a.severity,district:a.district,jx:Math.random()-.5,jy:Math.random()-.5}, a.summary, 'doc');
+  $('ingStat').textContent=`${a.kind} · sev ${a.severity} · ${a.district} · ${Math.round(j.latency_ms)}ms${j.source==='ndi'?' · via NDI':''}`;
+  radio('t-doc',`📄 report → ${inc.id}: ${a.kind}, sev ${a.severity}, ${a.district} (Drex ${Math.round(j.latency_ms)}ms${j.source==='ndi'?', parsed by NDI':''})`);
+}
+$('bIngest').onclick=()=>{ const t=$('doc').value.trim(); if(t) ingest({text:t}); };
+const drop=$('drop');
+['dragover','dragenter'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',ev=>{ const f=ev.dataTransfer.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>ingest({name:f.name,data:fr.result.split(',')[1]}); fr.readAsDataURL(f); });
+
+// ============================================================ controls
+$('bPause').onclick=()=>{ if(ended) return; paused=!paused; $('bPause').textContent=paused?'▶ Resume':'⏸ Pause'; };
+$('bSurge').onclick=()=>{ if(ended) return; for(let i=0;i<6;i++) inject(randEvent()); };
+$('bRun').onclick=()=>{ scenario=$('scen').value; reset(); };
+$('scen').onchange=()=>{ scenario=$('scen').value; reset(); };
+$('view').onchange=()=>{ const v=$('view').value, vs=$('views');
+  vs.className='views'+(v==='split'?' split':''); $('wA').classList.toggle('hide', v==='greedy'); $('wB').classList.toggle('hide', v==='swarm'); };
+$('cvA').addEventListener('click',ev=>{ const cv=$('cvA'), r=cv.getBoundingClientRect(), sc=Math.min(r.width/LW,r.height/LH), ox=(r.width-LW*sc)/2, oy=(r.height-LH*sc)/2;
+  const x=(ev.clientX-r.left-ox)/sc, y=(ev.clientY-r.top-oy)/sc;
+  let best=null, bd=26; A.units.forEach(u=>{ const d=Math.hypot(u.x-x,u.y-y); if(d<bd){bd=d;best=u;} });
+  if(best){ inspected=best.id; renderInspector(); } });
+fetch('/api/status').then(r=>r.json()).then(s=>{ mode=s.drex_mode;
+  $('b-drex').textContent=s.drex_mode==='live'?'Drex LIVE · '+s.model:'Drex MOCK (offline demo)'; $('b-drex').className='badge '+s.drex_mode;
+  $('b-ndi').textContent=s.ndi?'NDI on':'NDI off (text only)'; $('b-ndi').className='badge '+(s.ndi?'live':''); });
+reset(); setInterval(tick,1100); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
